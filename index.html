@@ -4,31 +4,28 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
   <title>Denpasar ATCS Wall</title>
+
+  <!-- HLS.js for Chrome/Edge/Firefox (Safari plays HLS natively) -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
   <style>
     :root{
-      --bg:#05070b;
-      --tile:#050912;
-      --divider: rgba(80, 220, 120, .35);
-      --divider2: rgba(255,255,255,.08);
-      --text:#e9eefc;
-      --overlay: rgba(0,0,0,.55);
-      --shadow: 0 18px 50px rgba(0,0,0,.55);
-      --cols: 4; --rows: 4; --gap: 6px; --radius: 10px;
+      --bg:#05070b; --tile:#050912; --divider: rgba(80, 220, 120, .35); --divider2: rgba(255,255,255,.08);
+      --text:#e9eefc; --overlay: rgba(0,0,0,.55); --shadow: 0 18px 50px rgba(0,0,0,.55);
+      --cols:4; --rows:4; --gap:6px; --radius:10px;
       --font: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial;
     }
     *{box-sizing:border-box}
     html,body{height:100%; margin:0; background:var(--bg); color:var(--text); font-family:var(--font);}
     body{overflow:hidden;}
 
-    /* TV mode: hide controls */
     body.tv .hud{display:none;}
     body.tv #wall{padding:0;}
     body.tv .frame{border-radius:0;}
     body.tv .bezel{inset:0; padding:10px;}
 
     #wall{
-      height:100%; width:100%;
-      padding:14px;
+      height:100%; width:100%; padding:14px;
       display:flex; justify-content:center; align-items:stretch;
       background:
         radial-gradient(1000px 700px at 20% 15%, rgba(25,55,130,.25), transparent 55%),
@@ -62,20 +59,10 @@
       backdrop-filter: blur(10px);
       z-index:50; user-select:none;
     }
-    .hud input{
-      width:180px;
-      border:0; outline:none; background:transparent;
-      color:var(--text); font-size:12px;
-    }
+    .hud input{width:180px; border:0; outline:none; background:transparent; color:var(--text); font-size:12px;}
     .btn{
-      border:1px solid rgba(255,255,255,.12);
-      background: rgba(255,255,255,.06);
-      color: var(--text);
-      padding:6px 9px;
-      border-radius:999px;
-      cursor:pointer;
-      font-size:12px;
-      white-space:nowrap;
+      border:1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); color: var(--text);
+      padding:6px 9px; border-radius:999px; cursor:pointer; font-size:12px; white-space:nowrap;
     }
     .btn:hover{border-color: rgba(80,220,120,.45); box-shadow: 0 0 0 3px rgba(80,220,120,.12);}
     .meta{font-size:12px; opacity:.8; margin-left:6px; white-space:nowrap;}
@@ -108,7 +95,13 @@
       box-shadow: 0 0 0 1px var(--divider);
       opacity:.55;
     }
-    iframe{position:absolute; inset:0; width:100%; height:100%; border:0; background:#000; display:block;}
+
+    video{
+      position:absolute; inset:0;
+      width:100%; height:100%;
+      object-fit: cover;
+      background:#000;
+    }
 
     .topbar,.bottombar{
       position:absolute; left:0; right:0;
@@ -126,6 +119,20 @@
     .dot{width:6px; height:6px; border-radius:999px; background:#ff3b3b; box-shadow:0 0 0 3px rgba(255,59,59,.18);}
     .stamp{font-variant-numeric: tabular-nums; color: rgba(255,255,255,.85);}
 
+    .err{
+      position:absolute; inset:0;
+      display:none;
+      place-items:center;
+      text-align:center;
+      padding: 14px;
+      background: rgba(0,0,0,.55);
+      z-index: 20;
+      color: rgba(233,238,252,.88);
+      font-size: 12px;
+    }
+    .err b{display:block; margin-bottom:6px; font-size:13px;}
+    .tile.bad .err{display:grid;}
+
     .watermark{
       position:absolute; right:16px; bottom:16px;
       z-index:60;
@@ -139,59 +146,52 @@
       user-select:none;
     }
     .wm-logo{
-      width:34px; height:34px;
-      border-radius:10px;
+      width:34px; height:34px; border-radius:10px;
       background: rgba(255,255,255,.10);
-      display:grid; place-items:center;
-      overflow:hidden;
+      display:grid; place-items:center; overflow:hidden;
     }
     .wm-logo img{width:100%; height:100%; object-fit:cover; display:block;}
     .wm-text{display:flex; flex-direction:column; gap:2px; line-height:1.1}
     .wm-text b{font-size:12px; letter-spacing:.3px}
     .wm-text small{font-size:11px; opacity:.75}
 
-    /* Fullscreen prompt overlay (TV mode only) */
     .fsPrompt{
-      position:absolute; inset:0;
-      z-index:100;
-      display:none;
-      align-items:center;
-      justify-content:center;
-      padding: 18px;
+      position:absolute; inset:0; z-index:100;
+      display:none; align-items:center; justify-content:center; padding:18px;
       background: radial-gradient(900px 600px at 50% 40%, rgba(0,0,0,.35), rgba(0,0,0,.85));
       backdrop-filter: blur(6px);
     }
     body.tv .fsPrompt{display:flex;}
     .fsCard{
-      width: min(760px, 92vw);
-      border-radius: 18px;
-      border: 1px solid rgba(255,255,255,.12);
+      width:min(760px,92vw);
+      border-radius:18px;
+      border:1px solid rgba(255,255,255,.12);
       background: rgba(0,0,0,.55);
       box-shadow: 0 18px 60px rgba(0,0,0,.65);
-      padding: 18px 18px 16px;
+      padding:18px 18px 16px;
       text-align:center;
     }
-    .fsCard h1{margin:0 0 8px; font-size:18px; letter-spacing:.3px}
+    .fsCard h1{margin:0 0 8px; font-size:18px;}
     .fsCard p{margin:0 0 14px; font-size:13px; color: rgba(233,238,252,.78); line-height:1.4}
     .fsRow{display:flex; gap:10px; justify-content:center; flex-wrap:wrap;}
     .bigBtn{
-      border: 1px solid rgba(80,220,120,.40);
+      border:1px solid rgba(80,220,120,.40);
       background: rgba(80,220,120,.14);
       color: var(--text);
-      padding: 10px 14px;
-      border-radius: 999px;
+      padding:10px 14px;
+      border-radius:999px;
       cursor:pointer;
-      font-size: 13px;
-      font-weight: 700;
+      font-size:13px;
+      font-weight:700;
     }
     .ghostBtn{
-      border: 1px solid rgba(255,255,255,.14);
+      border:1px solid rgba(255,255,255,.14);
       background: rgba(255,255,255,.06);
       color: var(--text);
-      padding: 10px 14px;
-      border-radius: 999px;
+      padding:10px 14px;
+      border-radius:999px;
       cursor:pointer;
-      font-size: 13px;
+      font-size:13px;
     }
     .warn{margin-top:10px; font-size:12px; color: rgba(233,238,252,.65);}
   </style>
@@ -241,30 +241,33 @@
   // ===== CONFIG =====
   const OPERATOR_NAME = "Bima";
   const WATERMARK_TITLE = "DENPASAR ATCS WALL";
-  const LOGO_URL = ""; // optional
+  const LOGO_URL = ""; // put a PNG/JPG url if you want
 
-  const ROTATE_SECONDS = 20; // only if enabled manually
-  const TILE_COUNT = 16;
+  const ROTATE_SECONDS = 20;       // rotation interval (only when enabled manually)
+  const TILE_COUNT = 16;           // locked 4x4
 
-  // Normalize + ensure https://
+  // Your Cloudflare Worker proxy (must end with /hls?url=)
+  const PROXY = "https://denpasar-atcs-proxy.oc62cyh.workers.dev/hls?url=";
+
+  // Source cameras (direct m3u8). Proxy will wrap these automatically.
   const STREAMS = [
-  { name: "A070 TITIBANDA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A070TITIBANDAPTZ/stream.m3u8" },
-  { name: "A023 CATURMUKA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A023CATURMUKAPTZ/stream.m3u8" },
-  { name: "A008 MAHENDRADATTA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A008MAHENDRADATTAPTZ/stream.m3u8" },
-  { name: "A004 TEUKUUMAR PTZ2", url: "https://atcs.denpasarkota.go.id/stream/A004TEUKUUMARPTZ2/stream.m3u8" },
-  { name: "A042 SEDAPMALAM PTZ", url: "https://atcs.denpasarkota.go.id/stream/A042SEDAPMALAMPTZ/stream.m3u8" },
-  { name: "A043 GUNUNGGALUNGGUNG PTZ", url: "https://atcs.denpasarkota.go.id/stream/A043GUNUNGGALUNGGUNGPTZ/stream.m3u8" },
-  { name: "A031 PIDADA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A031PIDADAPTZ/stream.m3u8" },
-  { name: "A001 GUNUNGAGUNG PTZ", url: "https://atcs.denpasarkota.go.id/stream/A001GUNUNGAGUNGPTZ/stream.m3u8" },
-  { name: "A032 AHMADYANI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A032AHMADYANIPTZ/stream.m3u8" },
-  { name: "A033 NANGKA PTZ1", url: "https://atcs.denpasarkota.go.id/stream/A033NANGKAPTZ1/stream.m3u8" },
-  { name: "A063 PANTAI MATAHARI TERBIT PTZ", url: "https://atcs.denpasarkota.go.id/stream/A063PANTAIMATAHARITERBITPTZ/stream.m3u8" },
-  { name: "A071 BUNDARAN HANG TUAH PTZ", url: "https://atcs.denpasarkota.go.id/stream/A071BUNDARANHANGTUAHPTZ/stream.m3u8" },
-  { name: "A022 UBUNG PTZ1", url: "https://atcs.denpasarkota.go.id/stream/A022UBUNGPTZ1/stream.m3u8" },
-  { name: "A016 YOSSUDARSO PTZ", url: "https://atcs.denpasarkota.go.id/stream/A016YOSSUDARSOPTZ/stream.m3u8" },
-  { name: "A030 CARGO PTZ", url: "https://atcs.denpasarkota.go.id/stream/A030CARGOPTZ/stream.m3u8" },
-  { name: "A034 KENYERI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A034KENYERIPTZ/stream.m3u8" }
-];
+    { name: "A070 TITIBANDA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A070TITIBANDAPTZ/stream.m3u8" },
+    { name: "A023 CATURMUKA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A023CATURMUKAPTZ/stream.m3u8" },
+    { name: "A008 MAHENDRADATTA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A008MAHENDRADATTAPTZ/stream.m3u8" },
+    { name: "A004 TEUKUUMAR PTZ2", url: "https://atcs.denpasarkota.go.id/stream/A004TEUKUUMARPTZ2/stream.m3u8" },
+    { name: "A042 SEDAPMALAM PTZ", url: "https://atcs.denpasarkota.go.id/stream/A042SEDAPMALAMPTZ/stream.m3u8" },
+    { name: "A043 GUNUNGGALUNGGUNG PTZ", url: "https://atcs.denpasarkota.go.id/stream/A043GUNUNGGALUNGGUNGPTZ/stream.m3u8" },
+    { name: "A031 PIDADA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A031PIDADAPTZ/stream.m3u8" },
+    { name: "A001 GUNUNGAGUNG PTZ", url: "https://atcs.denpasarkota.go.id/stream/A001GUNUNGAGUNGPTZ/stream.m3u8" },
+    { name: "A032 AHMADYANI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A032AHMADYANIPTZ/stream.m3u8" },
+    { name: "A033 NANGKA PTZ1", url: "https://atcs.denpasarkota.go.id/stream/A033NANGKAPTZ1/stream.m3u8" },
+    { name: "A063 PANTAI MATAHARI TERBIT PTZ", url: "https://atcs.denpasarkota.go.id/stream/A063PANTAIMATAHARITERBITPTZ/stream.m3u8" },
+    { name: "A071 BUNDARAN HANG TUAH PTZ", url: "https://atcs.denpasarkota.go.id/stream/A071BUNDARANHANGTUAHPTZ/stream.m3u8" },
+    { name: "A022 UBUNG PTZ1", url: "https://atcs.denpasarkota.go.id/stream/A022UBUNGPTZ1/stream.m3u8" },
+    { name: "A016 YOSSUDARSO PTZ", url: "https://atcs.denpasarkota.go.id/stream/A016YOSSUDARSOPTZ/stream.m3u8" },
+    { name: "A030 CARGO PTZ", url: "https://atcs.denpasarkota.go.id/stream/A030CARGOPTZ/stream.m3u8" },
+    { name: "A034 KENYERI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A034KENYERIPTZ/stream.m3u8" }
+  ];
 
   // ===== MODE =====
   const params = new URLSearchParams(location.search);
@@ -273,24 +276,6 @@
   const isEmbedded = (window.self !== window.top);
 
   // ===== HELPERS =====
-  function labelFromPath(url){
-    try{
-      const u = new URL(url);
-      const parts = u.pathname.split("/").filter(Boolean);
-      const last = parts[parts.length - 1] || "";
-      // "A070TITIBANDAPTZ" -> "A070 TITIBANDA PTZ"
-      return last
-        .replace(/PTZ\d*$/i, " PTZ")
-        .replace(/([A-Z])(\d)/g, "$1 $2")
-        .replace(/^([A]\d{3})(.*)$/i, "$1 $2")
-        .replace(/([A-Z]+)([A-Z][a-z]?)/g, "$1 $2")
-        .replace(/([A-Z])([A-Z]{2,})/g, "$1 $2")
-        .replace(/\s+/g," ")
-        .trim();
-    }catch{
-      return url;
-    }
-  }
   const pad = n => String(n).padStart(2,"0");
   function stamp(){
     const d = new Date();
@@ -310,18 +295,26 @@
     wmLogo.style.fontSize = "18px";
   }
 
+  // ===== STREAM LIST (wrapped through proxy) =====
+  const allCams = STREAMS.map(s => ({
+    label: s.name,
+    url: PROXY + encodeURIComponent(s.url),
+    search: (s.name + " " + s.url).toLowerCase()
+  }));
+
   // ===== BUILD TILES =====
   const grid = document.getElementById("grid");
   const tiles = [];
+
   function createTile(){
     const tile = document.createElement("div");
     tile.className = "tile";
 
-    const iframe = document.createElement("iframe");
-    iframe.loading = "lazy";
-    iframe.referrerPolicy = "no-referrer";
-    iframe.allow = "autoplay; fullscreen; picture-in-picture";
-    iframe.src = "about:blank";
+    const video = document.createElement("video");
+    video.muted = true;
+    video.autoplay = true;
+    video.playsInline = true;
+    video.controls = false;
 
     const topbar = document.createElement("div");
     topbar.className = "topbar";
@@ -334,28 +327,80 @@
       <span class="stamp" data-stamp="1">${stamp()}</span>
     `;
 
-    tile.append(iframe, topbar, bottombar);
-    tile._iframe = iframe;
+    const err = document.createElement("div");
+    err.className = "err";
+    err.innerHTML = `<div><b>Stream not playing</b><div class="msg">Click once to allow autoplay, or stream is offline.</div></div>`;
+
+    tile.append(video, topbar, bottombar, err);
+
+    tile._video = video;
+    tile._hls = null;
     tile._locEl = topbar.querySelector(".loc");
+    tile._setError = (msg) => {
+      tile.classList.add("bad");
+      tile.querySelector(".msg").textContent = msg || "Stream error";
+    };
+    tile._clearError = () => tile.classList.remove("bad");
+
     return tile;
   }
+
   for (let i=0; i<TILE_COUNT; i++){
     const t = createTile();
     tiles.push(t);
     grid.appendChild(t);
   }
 
-  // ===== PAGING (manual by default) =====
-  const allCams = LINKS.map(url => {
-    const label = labelFromPath(url);
-    return { url, label, search: (url + " " + label).toLowerCase() };
-  });
+  function destroyHls(tile){
+    if (tile._hls){
+      try { tile._hls.destroy(); } catch(e) {}
+      tile._hls = null;
+    }
+  }
 
+  function playOnTile(tile, url){
+    tile._clearError();
+    destroyHls(tile);
+
+    const video = tile._video;
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
+
+    // Safari can play HLS natively
+    if (video.canPlayType("application/vnd.apple.mpegurl")){
+      video.src = url;
+      video.play().catch(() => tile._setError("Autoplay blocked — click once on the page."));
+      return;
+    }
+
+    // Chrome/Edge/Firefox via hls.js
+    if (window.Hls && Hls.isSupported()){
+      const hls = new Hls({ lowLatencyMode: true, backBufferLength: 30 });
+      tile._hls = hls;
+
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MEDIA_ATTACHED, () => hls.loadSource(url));
+      hls.on(Hls.Events.ERROR, (evt, data) => {
+        if (data && data.fatal) {
+          tile._setError(`HLS fatal: ${data.type}`);
+          try { hls.destroy(); } catch(e) {}
+          tile._hls = null;
+        }
+      });
+
+      video.play().catch(() => tile._setError("Autoplay blocked — click once on the page."));
+      return;
+    }
+
+    tile._setError("HLS not supported in this browser");
+  }
+
+  // ===== PAGING (manual by default) =====
   let filtered = allCams.slice();
   let pageIndex = 0;
 
   function pageCount(){ return Math.max(1, Math.ceil(filtered.length / TILE_COUNT)); }
-
   function updateMeta(){
     document.getElementById("meta").textContent = `Page ${pageIndex+1}/${pageCount()} • ${filtered.length} cams`;
   }
@@ -373,10 +418,12 @@
         tile.style.visibility = "visible";
         tile._locEl.textContent = cam.label;
         tile._locEl.title = cam.url;
-        tile._iframe.src = cam.url + (cam.url.includes("?") ? "&" : "?") + "t=" + Date.now();
+        playOnTile(tile, cam.url);
       } else {
         tile.style.visibility = "hidden";
-        tile._iframe.src = "about:blank";
+        destroyHls(tile);
+        tile._video.removeAttribute("src");
+        tile._video.load();
         tile._locEl.textContent = "—";
         tile._locEl.title = "";
       }
@@ -470,4 +517,3 @@
 </script>
 </body>
 </html>
-
