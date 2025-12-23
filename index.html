@@ -58,11 +58,13 @@
       border:1px solid rgba(255,255,255,.10);
       backdrop-filter: blur(10px);
       z-index:50; user-select:none;
+      flex-wrap:wrap;
     }
     .hud input{width:180px; border:0; outline:none; background:transparent; color:var(--text); font-size:12px;}
     .btn{
       border:1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.06); color: var(--text);
       padding:6px 9px; border-radius:999px; cursor:pointer; font-size:12px; white-space:nowrap;
+      appearance:none;
     }
     .btn:hover{border-color: rgba(80,220,120,.45); box-shadow: 0 0 0 3px rgba(80,220,120,.12);}
     .meta{font-size:12px; opacity:.8; margin-left:6px; white-space:nowrap;}
@@ -221,6 +223,7 @@
       <button class="btn" id="startAll">▶ Start All</button>
       <button class="btn" id="fullscreenWall">⛶ Fullscreen</button>
       <button class="btn" id="tvMode">📺 TV Wall</button>
+      <select class="btn" id="pageJump" title="Jump to page"></select>
       <span class="meta" id="meta"></span>
     </div>
 
@@ -267,7 +270,36 @@
     { name: "A022 UBUNG PTZ1", url: "https://atcs.denpasarkota.go.id/stream/A022UBUNGPTZ1/stream.m3u8" },
     { name: "A016 YOSSUDARSO PTZ", url: "https://atcs.denpasarkota.go.id/stream/A016YOSSUDARSOPTZ/stream.m3u8" },
     { name: "A030 CARGO PTZ", url: "https://atcs.denpasarkota.go.id/stream/A030CARGOPTZ/stream.m3u8" },
-    { name: "A034 KENYERI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A034KENYERIPTZ/stream.m3u8" }
+    { name: "A034 KENYERI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A034KENYERIPTZ/stream.m3u8" },
+
+    // === Additional cameras (new) ===
+    { name: "A115 ANTASURA PANORAMIC", url: "https://atcs.denpasarkota.go.id/stream/A115ANTASURAPANORAMIC/stream.m3u8" },
+    { name: "A073 AHMADYANI - MARUTI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A073AHMADYANI-MARUTIPTZ/stream.m3u8" },
+    { name: "A093 DPRD KOTA DENPASAR PTZ", url: "https://atcs.denpasarkota.go.id/stream/A093DPRDKOTADENPASARPTZ/stream.m3u8" },
+    { name: "A116 PEMOGAN PTZ", url: "https://atcs.denpasarkota.go.id/stream/A116PEMOGANPTZ/stream.m3u8" },
+    { name: "A103 GAJAH BADA BARAT PANORAMIC", url: "https://atcs.denpasarkota.go.id/stream/A103GAJAHBADABARATPANORAMIC/stream.m3u8" },
+    { name: "A066 PUPUTAN PTZ", url: "https://atcs.denpasarkota.go.id/stream/A066PUPUTANPTZ/stream.m3u8" },
+    { name: "A074 AHMADYANI - MULAWARMAN PANORAMIC", url: "https://atcs.denpasarkota.go.id/stream/A074AHMADYANI-MULAWARMANPANORAMIC/stream.m3u8" },
+    { name: "A114 SURADIPA PANORAMIC", url: "https://atcs.denpasarkota.go.id/stream/A114SURADIPAPANORAMIC/stream.m3u8" },
+    { name: "A048 NUSA INDAH PTZ", url: "https://atcs.denpasarkota.go.id/stream/A048NUSAINDAHPTZ/stream.m3u8" },
+    { name: "A037 KENAROK PTZ", url: "https://atcs.denpasarkota.go.id/stream/A037KENAROKPTZ/stream.m3u8" },
+    { name: "A038 TOHPATI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A038TOHPATIPTZ/stream.m3u8" },
+    { name: "A039 KEBO IWA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A039KEBOIWAPTZ/stream.m3u8" },
+    { name: "A040 SEKAR SARI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A040SEKARSARIPTZ/stream.m3u8" },
+    { name: "A041 GEMITIR PTZ", url: "https://atcs.denpasarkota.go.id/stream/A041GEMITIRPTZ/stream.m3u8" },
+    { name: "A035 NOJA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A035NOJAPTZ/stream.m3u8" },
+    { name: "A036 TRENGGULI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A036TRENGGULIPTZ/stream.m3u8" },
+    { name: "A024 ARJUNA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A024ARJUNAPTZ/stream.m3u8" },
+    { name: "A017 PUPUTAN PTZ (ALT)", url: "https://atcs.denpasarkota.go.id/stream/A017PUPUTANPTZ/stream.m3u8" },
+    { name: "A014 KAPTEN JAPA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A014KAPTENJAPAPTZ/stream.m3u8" },
+    { name: "A013 SIDAKARYA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A013SIDAKARYAPTZ/stream.m3u8" },
+    { name: "A012 PULAU SAELUS PTZ", url: "https://atcs.denpasarkota.go.id/stream/A012PULAUSAELUSPTZ/stream.m3u8" },
+    { name: "A011 MERPATI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A011MERPATIPTZ/stream.m3u8" },
+    { name: "A007 BALUN PTZ", url: "https://atcs.denpasarkota.go.id/stream/A007BALUNPTZ/stream.m3u8" },
+    { name: "A005 BATANTA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A005BATANTAPTZ/stream.m3u8" },
+    { name: "TEUKU UMAR PTZ1", url: "https://atcs.denpasarkota.go.id/stream/TEUKUUMARPTZ1/stream.m3u8" },
+    { name: "A003 GUNUNG SALAK PTZ", url: "https://atcs.denpasarkota.go.id/stream/A003GUNUNGSALAKPTZ/stream.m3u8" },
+    { name: "A004 TEUKU UMAR PTZ (ALT)", url: "https://atcs.denpasarkota.go.id/stream/A004TEUKUUMARPTZ/stream.m3u8" }
   ];
 
   // ===== MODE =====
@@ -283,6 +315,13 @@
     return `${pad(d.getDate())}-${pad(d.getMonth()+1)}-${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
   }
 
+  // Sort helper
+  function camKey(name){
+    const m = String(name).match(/\bA(\d{3})\b/i);
+    if (m) return { has:true, n: parseInt(m[1], 10) };
+    return { has:false, n: 999999 };
+  }
+
   // ===== WATERMARK =====
   document.getElementById("wmTitle").textContent = WATERMARK_TITLE;
   document.getElementById("wmOperator").textContent = `Operator: ${OPERATOR_NAME}`;
@@ -296,12 +335,20 @@
     wmLogo.style.fontSize = "18px";
   }
 
-  // ===== STREAM LIST (wrapped through proxy) =====
-  const allCams = STREAMS.map(s => ({
+  // ===== STREAM LIST (wrapped through proxy) + AUTO-SORT =====
+  let allCams = STREAMS.map(s => ({
     label: s.name,
     url: PROXY + encodeURIComponent(s.url),
     search: (s.name + " " + s.url).toLowerCase()
   }));
+
+  allCams.sort((a,b) => {
+    const ka = camKey(a.label), kb = camKey(b.label);
+    if (ka.has && kb.has) return ka.n - kb.n;
+    if (ka.has && !kb.has) return -1;
+    if (!ka.has && kb.has) return 1;
+    return a.label.localeCompare(b.label);
+  });
 
   // ===== BUILD TILES =====
   const grid = document.getElementById("grid");
@@ -368,14 +415,12 @@
     video.removeAttribute("src");
     video.load();
 
-    // Safari can play HLS natively
     if (video.canPlayType("application/vnd.apple.mpegurl")){
       video.src = url;
       video.play().catch((e) => tile._setError(`Play failed: ${e?.name || e}`));
       return;
     }
 
-    // Chrome/Edge/Firefox via hls.js
     if (window.Hls && Hls.isSupported()){
       const hls = new Hls({ lowLatencyMode: true, backBufferLength: 30 });
       tile._hls = hls;
@@ -403,9 +448,31 @@
   let pageIndex = 0;
 
   function pageCount(){ return Math.max(1, Math.ceil(filtered.length / TILE_COUNT)); }
+
+  const pageJump = document.getElementById("pageJump");
+  function updatePageJump(){
+    const pc = pageCount();
+    if (pageJump.options.length !== pc){
+      pageJump.innerHTML = "";
+      for (let i=0; i<pc; i++){
+        const opt = document.createElement("option");
+        opt.value = String(i);
+        opt.textContent = `Page ${i+1}`;
+        pageJump.appendChild(opt);
+      }
+    }
+    pageJump.value = String(pageIndex);
+  }
+
   function updateMeta(){
     document.getElementById("meta").textContent = `Page ${pageIndex+1}/${pageCount()} • ${filtered.length} cams`;
+    updatePageJump();
   }
+
+  pageJump.addEventListener("change", () => {
+    const idx = parseInt(pageJump.value, 10);
+    if (!Number.isNaN(idx)) setPage(idx);
+  });
 
   function setPage(idx){
     const pc = pageCount();
@@ -495,15 +562,9 @@
     });
   }
 
-  document.getElementById("startAll").onclick = () => {
-    // user gesture -> browsers allow playback
-    startAll();
-  };
+  document.getElementById("startAll").onclick = () => startAll();
 
-  // First click anywhere starts all too (nice for TV screens)
-  document.addEventListener("click", () => {
-    startAll();
-  }, { once: true });
+  document.addEventListener("click", () => startAll(), { once: true });
 
   // Clock
   setInterval(() => {
