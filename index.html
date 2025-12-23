@@ -218,6 +218,7 @@
       <button class="btn" id="next">Next ⟶</button>
       <button class="btn" id="enableRotate">▶ Enable rotate</button>
       <button class="btn" id="reloadAll">↻ Reload</button>
+      <button class="btn" id="startAll">▶ Start All</button>
       <button class="btn" id="fullscreenWall">⛶ Fullscreen</button>
       <button class="btn" id="tvMode">📺 TV Wall</button>
       <span class="meta" id="meta"></span>
@@ -329,7 +330,7 @@
 
     const err = document.createElement("div");
     err.className = "err";
-    err.innerHTML = `<div><b>Stream not playing</b><div class="msg">Click once to allow autoplay, or stream is offline.</div></div>`;
+    err.innerHTML = `<div><b>Stream not playing</b><div class="msg">Click ▶ Start All (top bar) once.</div></div>`;
 
     tile.append(video, topbar, bottombar, err);
 
@@ -370,7 +371,7 @@
     // Safari can play HLS natively
     if (video.canPlayType("application/vnd.apple.mpegurl")){
       video.src = url;
-      video.play().catch(() => tile._setError("Autoplay blocked — click once on the page."));
+      video.play().catch((e) => tile._setError(`Play failed: ${e?.name || e}`));
       return;
     }
 
@@ -381,15 +382,16 @@
 
       hls.attachMedia(video);
       hls.on(Hls.Events.MEDIA_ATTACHED, () => hls.loadSource(url));
+
       hls.on(Hls.Events.ERROR, (evt, data) => {
         if (data && data.fatal) {
-          tile._setError(`HLS fatal: ${data.type}`);
+          tile._setError(`HLS fatal: ${data.type} (${data.details || "no details"})`);
           try { hls.destroy(); } catch(e) {}
           tile._hls = null;
         }
       });
 
-      video.play().catch(() => tile._setError("Autoplay blocked — click once on the page."));
+      video.play().catch((e) => tile._setError(`Play failed: ${e?.name || e}`));
       return;
     }
 
@@ -483,6 +485,25 @@
   }
   rotateBtn.onclick = () => rotating ? stopRotate() : startRotate();
   stopRotate();
+
+  // ===== START ALL (gesture-based) =====
+  function startAll(){
+    tiles.forEach(t => {
+      if (!t._video) return;
+      t._video.muted = true;
+      t._video.play().catch(()=>{});
+    });
+  }
+
+  document.getElementById("startAll").onclick = () => {
+    // user gesture -> browsers allow playback
+    startAll();
+  };
+
+  // First click anywhere starts all too (nice for TV screens)
+  document.addEventListener("click", () => {
+    startAll();
+  }, { once: true });
 
   // Clock
   setInterval(() => {
