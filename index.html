@@ -93,6 +93,16 @@ video{
 .restart{background:#f5a623;color:#111}
 .bad{background:#e74c3c}
 
+.sourceTag{
+  position:absolute;top:8px;left:34px;
+  font-size:10px;font-weight:800;
+  padding:3px 8px;border-radius:999px;
+  letter-spacing:.25px;
+  user-select:none;
+  background:rgba(255,255,255,.10);
+  border:1px solid rgba(255,255,255,.12);
+}
+
 .pinMark{
   position:absolute;left:8px;top:8px;
   font-size:14px;
@@ -133,6 +143,7 @@ video{
 .tile.fs .nameTag,
 .tile.fs .stats,
 .tile.fs .pinMark,
+.tile.fs .sourceTag,
 .tile.fs .badge{transform: scale(1.05); transform-origin: bottom right;}
 </style>
 </head>
@@ -160,8 +171,9 @@ const PER_PAGE = 6;                 // 6 tiles on mobile
 const STALL_MS = 15000;             // if no timeupdate for 15s => restart
 const STATS_EVERY_MS = 2000;        // fps/lag update
 
-/* ================= STREAMS (YOUR LIST) ================= */
+/* ================= STREAMS ================= */
 const STREAMS = [
+  // --- ATCS (use proxy) ---
   { name: "A070 TITIBANDA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A070TITIBANDAPTZ/stream.m3u8" },
   { name: "A023 CATURMUKA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A023CATURMUKAPTZ/stream.m3u8" },
   { name: "A008 MAHENDRADATTA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A008MAHENDRADATTAPTZ/stream.m3u8" },
@@ -205,15 +217,43 @@ const STREAMS = [
   { name: "A005 BATANTA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A005BATANTAPTZ/stream.m3u8" },
   { name: "TEUKU UMAR PTZ1", url: "https://atcs.denpasarkota.go.id/stream/TEUKUUMARPTZ1/stream.m3u8" },
   { name: "A003 GUNUNG SALAK PTZ", url: "https://atcs.denpasarkota.go.id/stream/A003GUNUNGSALAKPTZ/stream.m3u8" },
-  { name: "A004 TEUKU UMAR PTZ (ALT)", url: "https://atcs.denpasarkota.go.id/stream/A004TEUKUUMARPTZ/stream.m3u8" }
+  { name: "A004 TEUKU UMAR PTZ (ALT)", url: "https://atcs.denpasarkota.go.id/stream/A004TEUKUUMARPTZ/stream.m3u8" },
+
+  // --- BaliProv (direct HLS) ---
+  { name: "BaliProv: perbatasan-klungkung-gianyar", url: "https://transcode.baliprov.go.id/cctv/perbatasan-klungkung-gianyar/video1_stream.m3u8" },
+  { name: "BaliProv: terminal-cargo", url: "https://transcode.baliprov.go.id/cctv/terminal-cargo/video1_stream.m3u8" },
+  { name: "BaliProv: catus-pata", url: "https://transcode.baliprov.go.id/cctv/catus-pata/video1_stream.m3u8" },
+  { name: "BaliProv: perempatan-banjarangkan-tusan", url: "https://transcode.baliprov.go.id/cctv/perempatan-banjarangkan-tusan/video1_stream.m3u8" },
+  { name: "BaliProv: perempatan-sudirman", url: "https://transcode.baliprov.go.id/cctv/perempatan-sudirman/video1_stream.m3u8" },
+  { name: "BaliProv: patih-jelantik-majapahit", url: "https://transcode.baliprov.go.id/cctv/patih-jelantik-majapahit/video1_stream.m3u8" },
+  { name: "BaliProv: jalan-seminyak-bintanggg-keraton", url: "https://transcode.baliprov.go.id/cctv/jalan-seminyak-depan-swalayan-bintanggg-keraton/video1_stream.m3u8" },
+  { name: "BaliProv: jl-arjuna-doublesix", url: "https://transcode.baliprov.go.id/cctv/jl-arjuna-parkiran-pantai-doublesix/video1_stream.m3u8" },
+  { name: "BaliProv: depan-pura-goa-lawah", url: "https://transcode.baliprov.go.id/cctv/depan-pura-goa-lawah/video1_stream.m3u8" },
+
+  /* NEW (added by you) */
+  { name: "BaliProv: pertigaan-sman-satu-semarapura", url: "https://transcode.baliprov.go.id/cctv/pertigaan-sman-satu-semarapura/video1_stream.m3u8" },
+  { name: "BaliProv: simpang-lima", url: "https://transcode.baliprov.go.id/cctv/simpang-lima/video1_stream.m3u8" },
+  { name: "BaliProv: pasar-senggol", url: "https://transcode.baliprov.go.id/cctv/pasar-senggol/video1_stream.m3u8" },
+  { name: "BaliProv: depan-popies-2--sky-garden", url: "https://transcode.baliprov.go.id/cctv/depan-popies-2--sky-garden/video1_stream.m3u8" }
 ];
 
-/* ================= SORT BY A### ================= */
+/* ================= HELPERS ================= */
 function camNum(name){
   const m = String(name).match(/\bA(\d{3})\b/i);
   return m ? parseInt(m[1],10) : 999999;
 }
-STREAMS.sort((a,b)=>camNum(a.name)-camNum(b.name) || a.name.localeCompare(b.name));
+function isATCS(url){ return /atcs\.denpasarkota\.go\.id/i.test(url); }
+function sourceLabel(url){ return isATCS(url) ? "ATCS" : "BaliProv"; }
+
+/* Sort ATCS first by A###, then BaliProv */
+STREAMS.sort((a,b)=>{
+  const aa = isATCS(a.url), bb = isATCS(b.url);
+  if (aa && !bb) return -1;
+  if (!aa && bb) return 1;
+  const na = camNum(a.name), nb = camNum(b.name);
+  if (na !== nb) return na - nb;
+  return a.name.localeCompare(b.name);
+});
 
 /* ================= PIN LOGIC ================= */
 let pinnedUrl = localStorage.getItem("pin_url") || "";
@@ -234,23 +274,32 @@ function clampPage(i, list){
   return ((i % tp) + tp) % tp;
 }
 function updatePageInfo(list){
-  const el = document.getElementById("pageInfo");
-  el.textContent = `Page ${pageIndex+1}/${totalPages(list)}`;
+  document.getElementById("pageInfo").textContent = `Page ${pageIndex+1}/${totalPages(list)}`;
 }
 
 /* ================= TILE PLAYER ================= */
 const grid = document.getElementById("grid");
+let currentTiles = [];
 
-/* keep references to currently rendered tiles to allow reloadBroken */
-let currentTiles = []; // [{tile, video, badge, restartFn, isBadFn}]
+function cleanupAllTiles(){
+  currentTiles.forEach(ref => {
+    try{
+      if (ref.statsTimer) clearInterval(ref.statsTimer);
+      if (ref.hls){ try{ref.hls.destroy();}catch(e){} ref.hls = null; }
+      if (ref.video){
+        try{ ref.video.pause(); }catch(e){}
+        ref.video.removeAttribute("src");
+        ref.video.load();
+      }
+    }catch(e){}
+  });
+  currentTiles = [];
+}
 
-function destroyTilePlayer(ref){
-  try{
-    if (ref.hls){
-      ref.hls.destroy();
-      ref.hls = null;
-    }
-  }catch(e){}
+function makePlayableUrl(camUrl){
+  // ATCS via proxy, BaliProv direct
+  if (isATCS(camUrl)) return PROXY + encodeURIComponent(camUrl);
+  return camUrl;
 }
 
 function renderPage(){
@@ -258,9 +307,7 @@ function renderPage(){
   pageIndex = clampPage(pageIndex, list);
   updatePageInfo(list);
 
-  // cleanup old tiles
-  currentTiles.forEach(t => destroyTilePlayer(t));
-  currentTiles = [];
+  cleanupAllTiles();
   grid.innerHTML = "";
 
   const start = pageIndex * PER_PAGE;
@@ -284,6 +331,10 @@ function renderPage(){
     pin.className = "pinMark";
     if (cam.url === pinnedUrl) pin.textContent = "📌";
 
+    const srcTag = document.createElement("div");
+    srcTag.className = "sourceTag";
+    srcTag.textContent = sourceLabel(cam.url);
+
     const nameTag = document.createElement("div");
     nameTag.className = "nameTag";
     nameTag.textContent = cam.name;
@@ -292,11 +343,11 @@ function renderPage(){
     stats.className = "stats";
     stats.textContent = "0fps 0.0s";
 
-    tile.append(v, badge, pin, nameTag, stats);
+    tile.append(v, badge, pin, srcTag, nameTag, stats);
     grid.appendChild(tile);
 
-    // --- player state
-    const src = PROXY + encodeURIComponent(cam.url);
+    const baseSrc = makePlayableUrl(cam.url);
+
     let hls = null;
     let lastUpdate = Date.now();
     let frames = 0;
@@ -316,14 +367,12 @@ function renderPage(){
       restarting = true;
       setBadge("restart");
 
-      // stop old
       if (hls){ try{ hls.destroy(); }catch(e){} hls=null; }
       try{ v.pause(); }catch(e){}
       v.removeAttribute("src");
       v.load();
 
-      // add cache buster to force refresh
-      const urlWithTs = src + (src.includes("?") ? "&" : "?") + "t=" + Date.now();
+      const urlWithTs = baseSrc + (baseSrc.includes("?") ? "&" : "?") + "t=" + Date.now();
 
       if (v.canPlayType("application/vnd.apple.mpegurl")){
         v.src = urlWithTs;
@@ -339,7 +388,6 @@ function renderPage(){
         hls.on(Hls.Events.ERROR, (_, data) => {
           if (data && data.fatal){
             setBadge("bad");
-            // try again later
             setTimeout(() => startPlayback(), 1200);
           }
         });
@@ -347,21 +395,16 @@ function renderPage(){
         setBadge("bad");
       }
 
-      // try play (gesture not always needed because muted)
       v.play().catch(()=>{});
-
-      // consider "restarted"
       setTimeout(()=>{ restarting=false; }, 800);
     }
 
-    // watchdog: mark timeupdate as healthy
     v.addEventListener("timeupdate", () => {
       lastUpdate = Date.now();
       frames++;
       if (!restarting) setBadge("ok");
     });
 
-    // statistics + stall detection
     const statsTimer = setInterval(() => {
       const fps = Math.round(frames / (STATS_EVERY_MS / 1000));
       frames = 0;
@@ -375,18 +418,16 @@ function renderPage(){
       }
     }, STATS_EVERY_MS);
 
-    // tap: per-tile fullscreen toggle
     tile.addEventListener("click", () => {
       tile.classList.toggle("fs");
     });
 
-    // long-press: pin
     let pressTimer = null;
     const pressStart = () => {
       pressTimer = setTimeout(() => {
         localStorage.setItem("pin_url", cam.url);
         pinnedUrl = cam.url;
-        pageIndex = 0;         // go back to first page when pinning
+        pageIndex = 0;
         renderPage();
       }, 650);
     };
@@ -399,31 +440,17 @@ function renderPage(){
     tile.addEventListener("touchend", pressEnd);
     tile.addEventListener("touchcancel", pressEnd);
 
-    // start now
     startPlayback();
 
-    // store reference for reloadBroken
-    const ref = {
-      tile, video: v, badge,
-      hls,
+    currentTiles.push({
+      tile,
+      video: v,
       statsTimer,
+      get hls(){ return hls; },
+      set hls(val){ hls = val; },
       restartFn: startPlayback,
       isBadFn: () => badge.classList.contains("bad") || badge.textContent === "STALLED"
-    };
-
-    // keep hls updated in ref
-    Object.defineProperty(ref, "hls", {
-      get(){ return hls; },
-      set(val){ hls = val; }
     });
-
-    // cleanup when re-rendering
-    ref.destroy = () => {
-      clearInterval(statsTimer);
-      if (hls){ try{hls.destroy()}catch(e){} }
-    };
-
-    currentTiles.push(ref);
   });
 }
 
@@ -438,13 +465,12 @@ document.getElementById("nextBtn").onclick = () => {
 };
 
 document.getElementById("reloadBroken").onclick = () => {
-  // restart only broken tiles on current page
   currentTiles.forEach(t => {
     if (t.isBadFn()) t.restartFn();
   });
 };
 
-/* nice swipe paging */
+/* swipe paging */
 let x0 = null;
 document.addEventListener("touchstart", (e)=>{ x0 = e.touches[0].clientX; }, {passive:true});
 document.addEventListener("touchend", (e)=>{
@@ -453,7 +479,7 @@ document.addEventListener("touchend", (e)=>{
   const dx = x1 - x0;
   x0 = null;
   if (Math.abs(dx) > 70){
-    pageIndex += (dx < 0) ? 1 : -1; // swipe left = next, right = prev
+    pageIndex += (dx < 0) ? 1 : -1;
     renderPage();
   }
 }, {passive:true});
