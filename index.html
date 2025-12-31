@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Denpasar ATCS Mobile</title>
+<title>CCTV Mobile Wall</title>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 
@@ -29,10 +29,11 @@ body{overflow:hidden}
 
 .hud{
   position:sticky;top:0;z-index:10;
-  display:flex;align-items:center;gap:10px;
+  display:flex;align-items:center;gap:8px;
   padding:10px 10px 8px;
   background:rgba(0,0,0,.70);
   backdrop-filter: blur(10px);
+  flex-wrap:wrap;
 }
 
 .hud b{letter-spacing:.4px}
@@ -59,7 +60,7 @@ body{overflow:hidden}
 }
 
 .grid{
-  height:calc(100% - 54px);
+  height:calc(100% - 58px);
   display:grid;
   grid-template-columns:repeat(var(--cols),1fr);
   grid-template-rows:repeat(var(--rows),1fr);
@@ -73,7 +74,6 @@ body{overflow:hidden}
   border-radius:var(--radius);
   overflow:hidden;
   box-shadow: 0 10px 30px rgba(0,0,0,.35);
-  touch-action: manipulation;
 }
 
 video{
@@ -90,29 +90,16 @@ video{
   padding:3px 8px;border-radius:999px;
   letter-spacing:.3px;
   user-select:none;
-  z-index:3;
 }
 .ok{background:#1faa59}
 .restart{background:#f5a623;color:#111}
 .bad{background:#e74c3c}
-
-.sourceTag{
-  position:absolute;top:8px;left:34px;
-  font-size:10px;font-weight:800;
-  padding:3px 8px;border-radius:999px;
-  letter-spacing:.25px;
-  user-select:none;
-  background:rgba(255,255,255,.10);
-  border:1px solid rgba(255,255,255,.12);
-  z-index:3;
-}
 
 .pinMark{
   position:absolute;left:8px;top:8px;
   font-size:14px;
   text-shadow:0 2px 12px rgba(0,0,0,.6);
   user-select:none;
-  z-index:3;
 }
 
 .nameTag{
@@ -126,7 +113,6 @@ video{
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
-  z-index:3;
 }
 
 .stats{
@@ -138,28 +124,22 @@ video{
   border:1px solid rgba(255,255,255,.10);
   opacity:.9;
   font-variant-numeric: tabular-nums;
-  z-index:3;
 }
 
-/* Per-tile reload button */
+/* per-tile reload */
 .tileReload{
   position:absolute;
-  right:8px;
-  top:34px;
-  z-index:4;
-  width:30px;height:30px;
+  left:8px; bottom:34px;
+  z-index:5;
+  width:28px; height:28px;
   border-radius:999px;
+  display:grid; place-items:center;
+  background:rgba(0,0,0,.45);
   border:1px solid rgba(255,255,255,.18);
-  background:rgba(0,0,0,.35);
   color:#fff;
-  display:grid;
-  place-items:center;
-  font-size:14px;
-  line-height:1;
+  font-size:13px;
   user-select:none;
 }
-.tileReload:active{transform:scale(.98)}
-.tileReload:hover{background:rgba(0,0,0,.5)}
 
 /* per-tile fullscreen */
 .tile.fs{
@@ -170,20 +150,21 @@ video{
 .tile.fs .nameTag,
 .tile.fs .stats,
 .tile.fs .pinMark,
-.tile.fs .sourceTag,
 .tile.fs .badge,
-.tile.fs .tileReload{transform: scale(1.05); transform-origin: bottom right;}
+.tile.fs .tileReload{transform: scale(1.06); transform-origin: bottom right;}
 </style>
 </head>
 
 <body>
   <div class="hud">
-    <b>ATCS</b>
+    <b>CCTV</b>
 
     <button class="btn" id="prevBtn">⟵ Prev</button>
     <button class="btn" id="nextBtn">Next ⟶</button>
 
     <div class="pager" id="pageInfo">Page 1/1</div>
+
+    <select class="btn" id="regionPick" title="Region"></select>
 
     <div class="spacer"></div>
 
@@ -199,121 +180,149 @@ const PER_PAGE = 6;                 // 6 tiles on mobile
 const STALL_MS = 15000;             // if no timeupdate for 15s => restart
 const STATS_EVERY_MS = 2000;        // fps/lag update
 
-/* ================= STREAMS ================= */
+/* ================= STREAMS (from your CSV) ================= */
+/* Each item includes region, name, url */
 const STREAMS = [
-  // --- ATCS (use proxy) ---
-  { name: "A070 TITIBANDA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A070TITIBANDAPTZ/stream.m3u8" },
-  { name: "A023 CATURMUKA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A023CATURMUKAPTZ/stream.m3u8" },
-  { name: "A008 MAHENDRADATTA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A008MAHENDRADATTAPTZ/stream.m3u8" },
-  { name: "A004 TEUKUUMAR PTZ2", url: "https://atcs.denpasarkota.go.id/stream/A004TEUKUUMARPTZ2/stream.m3u8" },
-  { name: "A042 SEDAPMALAM PTZ", url: "https://atcs.denpasarkota.go.id/stream/A042SEDAPMALAMPTZ/stream.m3u8" },
-  { name: "A043 GUNUNGGALUNGGUNG PTZ", url: "https://atcs.denpasarkota.go.id/stream/A043GUNUNGGALUNGGUNGPTZ/stream.m3u8" },
-  { name: "A031 PIDADA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A031PIDADAPTZ/stream.m3u8" },
-  { name: "A001 GUNUNGAGUNG PTZ", url: "https://atcs.denpasarkota.go.id/stream/A001GUNUNGAGUNGPTZ/stream.m3u8" },
-  { name: "A032 AHMADYANI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A032AHMADYANIPTZ/stream.m3u8" },
-  { name: "A033 NANGKA PTZ1", url: "https://atcs.denpasarkota.go.id/stream/A033NANGKAPTZ1/stream.m3u8" },
-  { name: "A063 PANTAI MATAHARI TERBIT PTZ", url: "https://atcs.denpasarkota.go.id/stream/A063PANTAIMATAHARITERBITPTZ/stream.m3u8" },
-  { name: "A071 BUNDARAN HANG TUAH PTZ", url: "https://atcs.denpasarkota.go.id/stream/A071BUNDARANHANGTUAHPTZ/stream.m3u8" },
-  { name: "A022 UBUNG PTZ1", url: "https://atcs.denpasarkota.go.id/stream/A022UBUNGPTZ1/stream.m3u8" },
-  { name: "A016 YOSSUDARSO PTZ", url: "https://atcs.denpasarkota.go.id/stream/A016YOSSUDARSOPTZ/stream.m3u8" },
-  { name: "A030 CARGO PTZ", url: "https://atcs.denpasarkota.go.id/stream/A030CARGOPTZ/stream.m3u8" },
-  { name: "A034 KENYERI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A034KENYERIPTZ/stream.m3u8" },
+  /* --- Badung --- */
+  { region: "Badung", name: "BaliProv: depan-popies-2--sky-garden", url: "https://transcode.baliprov.go.id/cctv/depan-popies-2--sky-garden/video1_stream.m3u8" },
+  { region: "Badung", name: "BaliProv: jalan-seminyak-bintanggg-keraton", url: "https://transcode.baliprov.go.id/cctv/jalan-seminyak-depan-swalayan-bintanggg-keraton/video1_stream.m3u8" },
+  { region: "Badung", name: "BaliProv: jl-arjuna-doublesix", url: "https://transcode.baliprov.go.id/cctv/jl-arjuna-parkiran-pantai-doublesix/video1_stream.m3u8" },
+  { region: "Badung", name: "BaliProv: patih-jelantik-majapahit", url: "https://transcode.baliprov.go.id/cctv/patih-jelantik-majapahit/video1_stream.m3u8" },
+  { region: "Badung", name: "BaliProv: simpang-btdc", url: "https://transcode.baliprov.go.id/cctv/simpang-btdc/video1_stream.m3u8" },
+  { region: "Badung", name: "BaliProv: simpang-benoa", url: "https://transcode.baliprov.go.id/cctv/simpang-benoa/video1_stream.m3u8" },
+  { region: "Badung", name: "BaliProv: simpang-kedonganan", url: "https://transcode.baliprov.go.id/cctv/simpang-kedonganan/video1_stream.m3u8" },
+  { region: "Badung", name: "BaliProv: simpang-pamelisan", url: "https://transcode.baliprov.go.id/cctv/simpang-pamelisan/video1_stream.m3u8" },
+  { region: "Badung", name: "BaliProv: simpang-pintu-tol", url: "https://transcode.baliprov.go.id/cctv/simpang-pintu-tol/video1_stream.m3u8" },
+  { region: "Badung", name: "BaliProv: simpang-taman-griya", url: "https://transcode.baliprov.go.id/cctv/simpang-taman-griya/video1_stream.m3u8" },
+  { region: "Badung", name: "BaliProv: simpang-tanjung-benoa", url: "https://transcode.baliprov.go.id/cctv/simpang-tanjung-benoa/video1_stream.m3u8" },
+  { region: "Badung", name: "BaliProv: simpang-tirtanadi", url: "https://transcode.baliprov.go.id/cctv/simpang-tirtanadi/video1_stream.m3u8" },
+  { region: "Badung", name: "BaliProv: simpang-unud", url: "https://transcode.baliprov.go.id/cctv/simpang-unud/video1_stream.m3u8" },
+  { region: "Badung", name: "BaliProv: simpang-patung-kuda", url: "https://transcode.baliprov.go.id/cctv/simpang-patung-kuda/video1_stream.m3u8" },
+  { region: "Badung", name: "BaliProv: underpass-ngurah-rai-selatan", url: "https://transcode.baliprov.go.id/cctv/underpass-ngurah-rai-selatan/video1_stream.m3u8" },
 
-  { name: "A115 ANTASURA PANORAMIC", url: "https://atcs.denpasarkota.go.id/stream/A115ANTASURAPANORAMIC/stream.m3u8" },
-  { name: "A073 AHMADYANI - MARUTI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A073AHMADYANI-MARUTIPTZ/stream.m3u8" },
-  { name: "A093 DPRD KOTA DENPASAR PTZ", url: "https://atcs.denpasarkota.go.id/stream/A093DPRDKOTADENPASARPTZ/stream.m3u8" },
-  { name: "A116 PEMOGAN PTZ", url: "https://atcs.denpasarkota.go.id/stream/A116PEMOGANPTZ/stream.m3u8" },
-  { name: "A103 GAJAH BADA BARAT PANORAMIC", url: "https://atcs.denpasarkota.go.id/stream/A103GAJAHBADABARATPANORAMIC/stream.m3u8" },
-  { name: "A066 PUPUTAN PTZ", url: "https://atcs.denpasarkota.go.id/stream/A066PUPUTANPTZ/stream.m3u8" },
-  { name: "A074 AHMADYANI - MULAWARMAN PANORAMIC", url: "https://atcs.denpasarkota.go.id/stream/A074AHMADYANI-MULAWARMANPANORAMIC/stream.m3u8" },
-  { name: "A114 SURADIPA PANORAMIC", url: "https://atcs.denpasarkota.go.id/stream/A114SURADIPAPANORAMIC/stream.m3u8" },
-  { name: "A048 NUSA INDAH PTZ", url: "https://atcs.denpasarkota.go.id/stream/A048NUSAINDAHPTZ/stream.m3u8" },
-  { name: "A037 KENAROK PTZ", url: "https://atcs.denpasarkota.go.id/stream/A037KENAROKPTZ/stream.m3u8" },
-  { name: "A038 TOHPATI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A038TOHPATIPTZ/stream.m3u8" },
-  { name: "A039 KEBO IWA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A039KEBOIWAPTZ/stream.m3u8" },
-  { name: "A040 SEKAR SARI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A040SEKARSARIPTZ/stream.m3u8" },
-  { name: "A041 GEMITIR PTZ", url: "https://atcs.denpasarkota.go.id/stream/A041GEMITIRPTZ/stream.m3u8" },
-  { name: "A035 NOJA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A035NOJAPTZ/stream.m3u8" },
-  { name: "A036 TRENGGULI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A036TRENGGULIPTZ/stream.m3u8" },
-  { name: "A024 ARJUNA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A024ARJUNAPTZ/stream.m3u8" },
-  { name: "A017 PUPUTAN PTZ (ALT)", url: "https://atcs.denpasarkota.go.id/stream/A017PUPUTANPTZ/stream.m3u8" },
-  { name: "A014 KAPTEN JAPA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A014KAPTENJAPAPTZ/stream.m3u8" },
-  { name: "A013 SIDAKARYA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A013SIDAKARYAPTZ/stream.m3u8" },
-  { name: "A012 PULAU SAELUS PTZ", url: "https://atcs.denpasarkota.go.id/stream/A012PULAUSAELUSPTZ/stream.m3u8" },
-  { name: "A011 MERPATI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A011MERPATIPTZ/stream.m3u8" },
-  { name: "A007 BALUN PTZ", url: "https://atcs.denpasarkota.go.id/stream/A007BALUNPTZ/stream.m3u8" },
-  { name: "A005 BATANTA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A005BATANTAPTZ/stream.m3u8" },
-  { name: "TEUKU UMAR PTZ1", url: "https://atcs.denpasarkota.go.id/stream/TEUKUUMARPTZ1/stream.m3u8" },
-  { name: "A003 GUNUNG SALAK PTZ", url: "https://atcs.denpasarkota.go.id/stream/A003GUNUNGSALAKPTZ/stream.m3u8" },
+  /* --- Denpasar / ATCS --- */
+  { region: "Denpasar", name: "A001 GUNUNGAGUNG PTZ", url: "https://atcs.denpasarkota.go.id/stream/A001GUNUNGAGUNGPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A003 GUNUNG SALAK PTZ", url: "https://atcs.denpasarkota.go.id/stream/A003GUNUNGSALAKPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A004 TEUKUUMAR PTZ2", url: "https://atcs.denpasarkota.go.id/stream/A004TEUKUUMARPTZ2/stream.m3u8" },
+  { region: "Denpasar", name: "A005 BATANTA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A005BATANTAPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A007 BALUN PTZ", url: "https://atcs.denpasarkota.go.id/stream/A007BALUNPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A008 MAHENDRADATTA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A008MAHENDRADATTAPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A011 MERPATI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A011MERPATIPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A012 PULAU SAELUS PTZ", url: "https://atcs.denpasarkota.go.id/stream/A012PULAUSAELUSPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A013 SIDAKARYA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A013SIDAKARYAPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A014 KAPTEN JAPA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A014KAPTENJAPAPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A016 YOSSUDARSO PTZ", url: "https://atcs.denpasarkota.go.id/stream/A016YOSSUDARSOPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A017 PUPUTAN PTZ (ALT)", url: "https://atcs.denpasarkota.go.id/stream/A017PUPUTANPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A022 UBUNG PTZ1", url: "https://atcs.denpasarkota.go.id/stream/A022UBUNGPTZ1/stream.m3u8" },
+  { region: "Denpasar", name: "A023 CATURMUKA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A023CATURMUKAPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A024 ARJUNA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A024ARJUNAPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A030 CARGO PTZ", url: "https://atcs.denpasarkota.go.id/stream/A030CARGOPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A031 PIDADA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A031PIDADAPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A032 AHMADYANI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A032AHMADYANIPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A033 NANGKA PTZ1", url: "https://atcs.denpasarkota.go.id/stream/A033NANGKAPTZ1/stream.m3u8" },
+  { region: "Denpasar", name: "A034 KENYERI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A034KENYERIPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A035 NOJA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A035NOJAPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A036 TRENGGULI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A036TRENGGULIPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A037 KENAROK PTZ", url: "https://atcs.denpasarkota.go.id/stream/A037KENAROKPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A038 TOHPATI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A038TOHPATIPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A039 KEBO IWA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A039KEBOIWAPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A040 SEKAR SARI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A040SEKARSARIPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A041 GEMITIR PTZ", url: "https://atcs.denpasarkota.go.id/stream/A041GEMITIRPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A042 SEDAPMALAM PTZ", url: "https://atcs.denpasarkota.go.id/stream/A042SEDAPMALAMPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A043 GUNUNGGALUNGGUNG PTZ", url: "https://atcs.denpasarkota.go.id/stream/A043GUNUNGGALUNGGUNGPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A048 NUSA INDAH PTZ", url: "https://atcs.denpasarkota.go.id/stream/A048NUSAINDAHPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A063 PANTAI MATAHARI TERBIT PTZ", url: "https://atcs.denpasarkota.go.id/stream/A063PANTAI MATAHARITERBITPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A066 PUPUTAN PTZ", url: "https://atcs.denpasarkota.go.id/stream/A066PUPUTANPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A070 TITIBANDA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A070TITIBANDAPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A071 BUNDARAN HANG TUAH PTZ", url: "https://atcs.denpasarkota.go.id/stream/A071BUNDARANHANGTUAHPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A073 AHMADYANI - MARUTI PTZ", url: "https://atcs.denpasarkota.go.id/stream/A073AHMADYANI-MARUTIPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A074 AHMADYANI - MULAWARMAN PANORAMIC", url: "https://atcs.denpasarkota.go.id/stream/A074AHMADYANI-MULAWARMANPANORAMIC/stream.m3u8" },
+  { region: "Denpasar", name: "A093 DPRD KOTA DENPASAR PTZ", url: "https://atcs.denpasarkota.go.id/stream/A093DPRDKOTADENPASARPTZ/stream.m3u8" },
+  { region: "Denpasar", name: "A103 GAJAH BADA BARAT PANORAMIC", url: "https://atcs.denpasarkota.go.id/stream/A103GAJAHBADABARATPANORAMIC/stream.m3u8" },
+  { region: "Denpasar", name: "A114 SURADIPA PANORAMIC", url: "https://atcs.denpasarkota.go.id/stream/A114SURADIPAPANORAMIC/stream.m3u8" },
+  { region: "Denpasar", name: "A115 ANTASURA PANORAMIC", url: "https://atcs.denpasarkota.go.id/stream/A115ANTASURAPANORAMIC/stream.m3u8" },
+  { region: "Denpasar", name: "A116 PEMOGAN PTZ", url: "https://atcs.denpasarkota.go.id/stream/A116PEMOGANPTZ/stream.m3u8" },
 
-  // --- BaliProv (direct HLS) ---
-  { name: "BaliProv: perbatasan-klungkung-gianyar", url: "https://transcode.baliprov.go.id/cctv/perbatasan-klungkung-gianyar/video1_stream.m3u8" },
-  { name: "BaliProv: terminal-cargo", url: "https://transcode.baliprov.go.id/cctv/terminal-cargo/video1_stream.m3u8" },
-  { name: "BaliProv: catus-pata", url: "https://transcode.baliprov.go.id/cctv/catus-pata/video1_stream.m3u8" },
-  { name: "BaliProv: perempatan-banjarangkan-tusan", url: "https://transcode.baliprov.go.id/cctv/perempatan-banjarangkan-tusan/video1_stream.m3u8" },
-  { name: "BaliProv: perempatan-sudirman", url: "https://transcode.baliprov.go.id/cctv/perempatan-sudirman/video1_stream.m3u8" },
-  { name: "BaliProv: patih-jelantik-majapahit", url: "https://transcode.baliprov.go.id/cctv/patih-jelantik-majapahit/video1_stream.m3u8" },
-  { name: "BaliProv: jalan-seminyak-bintanggg-keraton", url: "https://transcode.baliprov.go.id/cctv/jalan-seminyak-depan-swalayan-bintanggg-keraton/video1_stream.m3u8" },
-  { name: "BaliProv: jl-arjuna-doublesix", url: "https://transcode.baliprov.go.id/cctv/jl-arjuna-parkiran-pantai-doublesix/video1_stream.m3u8" },
-  { name: "BaliProv: depan-pura-goa-lawah", url: "https://transcode.baliprov.go.id/cctv/depan-pura-goa-lawah/video1_stream.m3u8" },
-  { name: "BaliProv: pertigaan-sman-satu-semarapura", url: "https://transcode.baliprov.go.id/cctv/pertigaan-sman-satu-semarapura/video1_stream.m3u8" },
-  { name: "BaliProv: simpang-lima", url: "https://transcode.baliprov.go.id/cctv/simpang-lima/video1_stream.m3u8" },
-  { name: "BaliProv: pasar-senggol", url: "https://transcode.baliprov.go.id/cctv/pasar-senggol/video1_stream.m3u8" },
-  { name: "BaliProv: depan-popies-2--sky-garden", url: "https://transcode.baliprov.go.id/cctv/depan-popies-2--sky-garden/video1_stream.m3u8" },
-  { name: "BaliProv: simpang-bali-beach", url: "https://transcode.baliprov.go.id/cctv/simpang-bali-beach/video1_stream.m3u8" },
-  { name: "BaliProv: simpang-padang-galak", url: "https://transcode.baliprov.go.id/cctv/simpang-padang-galak/video1_stream.m3u8" },
-  // --- BaliProv (additional) ---
-{ name: "BaliProv: simpang-patung-kuda", url: "https://transcode.baliprov.go.id/cctv/simpang-patung-kuda/video1_stream.m3u8" },
-{ name: "BaliProv: simpang-benoa", url: "https://transcode.baliprov.go.id/cctv/simpang-benoa/video1_stream.m3u8" },
-{ name: "BaliProv: simpang-tirtanadi", url: "https://transcode.baliprov.go.id/cctv/simpang-tirtanadi/video1_stream.m3u8" },
-{ name: "BaliProv: simpang-kedonganan", url: "https://transcode.baliprov.go.id/cctv/simpang-kedonganan/video1_stream.m3u8" },
-{ name: "BaliProv: simpang-pamelisan", url: "https://transcode.baliprov.go.id/cctv/simpang-pamelisan/video1_stream.m3u8" },
-{ name: "BaliProv: simpang-unud", url: "https://transcode.baliprov.go.id/cctv/simpang-unud/video1_stream.m3u8" },
-{ name: "BaliProv: simpang-taman-griya", url: "https://transcode.baliprov.go.id/cctv/simpang-taman-griya/video1_stream.m3u8" },
-{ name: "BaliProv: simpang-pintu-tol", url: "https://transcode.baliprov.go.id/cctv/simpang-pintu-tol/video1_stream.m3u8" },
-{ name: "BaliProv: simpang-tanjung-benoa", url: "https://transcode.baliprov.go.id/cctv/simpang-tanjung-benoa/video1_stream.m3u8" },
-{ name: "BaliProv: simpang-btdc", url: "https://transcode.baliprov.go.id/cctv/simpang-btdc/video1_stream.m3u8" },
-{ name: "BaliProv: underpass-ngurah-rai-selatan", url: "https://transcode.baliprov.go.id/cctv/underpass-ngurah-rai-selatan/video1_stream.m3u8" },
-{ name: "BaliProv: pura-batur", url: "https://transcode.baliprov.go.id/cctv/pura-batur/video1_stream.m3u8" },
-{ name: "BaliProv: besakih-jalan-masuk-utama", url: "https://transcode.baliprov.go.id/cctv/besakih-jalan-masuk-utama/video1_stream.m3u8" },
+  /* --- Bangli --- */
+  { region: "Bangli", name: "BaliProv: pura-batur", url: "https://transcode.baliprov.go.id/cctv/pura-batur/video1_stream.m3u8" },
 
+  /* --- Klungkung --- */
+  { region: "Klungkung", name: "BaliProv: catus-pata", url: "https://transcode.baliprov.go.id/cctv/catus-pata/video1_stream.m3u8" },
+  { region: "Klungkung", name: "BaliProv: pasar-senggol", url: "https://transcode.baliprov.go.id/cctv/pasar-senggol/video1_stream.m3u8" },
+  { region: "Klungkung", name: "BaliProv: perbatasan-klungkung-gianyar", url: "https://transcode.baliprov.go.id/cctv/perbatasan-klungkung-gianyar/video1_stream.m3u8" },
+  { region: "Klungkung", name: "BaliProv: perempatan-banjarangkan-tusan", url: "https://transcode.baliprov.go.id/cctv/perempatan-banjarangkan-tusan/video1_stream.m3u8" },
+  { region: "Klungkung", name: "BaliProv: pertigaan-sman-satu-semarapura", url: "https://transcode.baliprov.go.id/cctv/pertigaan-sman-satu-semarapura/video1_stream.m3u8" },
+  { region: "Klungkung", name: "BaliProv: simpang-lima", url: "https://transcode.baliprov.go.id/cctv/simpang-lima/video1_stream.m3u8" },
 
+  /* --- Karangasem --- */
+  { region: "Karangasem", name: "BaliProv: depan-pura-goa-lawah", url: "https://transcode.baliprov.go.id/cctv/depan-pura-goa-lawah/video1_stream.m3u8" },
+  { region: "Karangasem", name: "BaliProv: besakih-jalan-masuk-utama", url: "https://transcode.baliprov.go.id/cctv/besakih-jalan-masuk-utama/video1_stream.m3u8" },
+
+  /* --- Other BaliProv you added earlier --- */
+  { region: "Denpasar", name: "BaliProv: perempatan-sudirman", url: "https://transcode.baliprov.go.id/cctv/perempatan-sudirman/video1_stream.m3u8" },
+  { region: "Denpasar", name: "BaliProv: terminal-cargo", url: "https://transcode.baliprov.go.id/cctv/terminal-cargo/video1_stream.m3u8" },
+  { region: "Denpasar", name: "BaliProv: simpang-lima", url: "https://transcode.baliprov.go.id/cctv/simpang-lima/video1_stream.m3u8" },
+  { region: "Denpasar", name: "BaliProv: pasar-senggol", url: "https://transcode.baliprov.go.id/cctv/pasar-senggol/video1_stream.m3u8" }
 ];
 
-/* ================= HELPERS ================= */
+/* ================= REGION DROPDOWN ================= */
+let currentRegion = localStorage.getItem("region") || "All";
+const regionPick = document.getElementById("regionPick");
+
+/* ================= PIN LOGIC ================= */
+let pinnedUrl = localStorage.getItem("pin_url") || "";
+
+/* ================= SORT BY A### (within region) ================= */
 function camNum(name){
   const m = String(name).match(/\bA(\d{3})\b/i);
   return m ? parseInt(m[1],10) : 999999;
 }
-function isATCS(url){ return /atcs\.denpasarkota\.go\.id/i.test(url); }
-function sourceLabel(url){ return isATCS(url) ? "ATCS" : "BaliProv"; }
 
-/* Sort ATCS first by A###, then BaliProv */
-STREAMS.sort((a,b)=>{
-  const aa = isATCS(a.url), bb = isATCS(b.url);
-  if (aa && !bb) return -1;
-  if (!aa && bb) return 1;
-  const na = camNum(a.name), nb = camNum(b.name);
-  if (na !== nb) return na - nb;
-  return a.name.localeCompare(b.name);
-});
-
-/* ================= PIN LOGIC (toggle) ================= */
-let pinnedUrl = localStorage.getItem("pin_url") || "";
-function setPinned(url){
-  if (!url){
-    localStorage.removeItem("pin_url");
-    pinnedUrl = "";
-  } else {
-    localStorage.setItem("pin_url", url);
-    pinnedUrl = url;
-  }
+/* build region set */
+function buildRegionOptions(){
+  const regions = Array.from(new Set(STREAMS.map(s => s.region).filter(Boolean))).sort((a,b)=>a.localeCompare(b));
+  regionPick.innerHTML = "";
+  const allOpt = document.createElement("option");
+  allOpt.value = "All"; allOpt.textContent = "All";
+  regionPick.appendChild(allOpt);
+  regions.forEach(r => {
+    const opt = document.createElement("option");
+    opt.value = r; opt.textContent = r;
+    regionPick.appendChild(opt);
+  });
+  regionPick.value = currentRegion;
 }
+buildRegionOptions();
+
+/* ================= PROXY RULE (ATCS only) ================= */
+function isATCS(url){
+  return /atcs\.denpasarkota\.go\.id/i.test(url);
+}
+function buildSrc(url){
+  // ATCS needs proxy (CORS). BaliProv does not.
+  return isATCS(url) ? (PROXY + encodeURIComponent(url)) : url;
+}
+
+/* ================= ORDERED LIST (region + pin) ================= */
 function orderedStreams(){
-  if (!pinnedUrl) return STREAMS.slice();
-  const pinned = STREAMS.find(s=>s.url===pinnedUrl);
-  const rest = STREAMS.filter(s=>s.url!==pinnedUrl);
-  return pinned ? [pinned, ...rest] : STREAMS.slice();
+  let list = STREAMS.slice();
+
+  // region filter
+  if (currentRegion !== "All"){
+    list = list.filter(s => s.region === currentRegion);
+  }
+
+  // sort by A### then name
+  list.sort((a,b) => camNum(a.name) - camNum(b.name) || a.name.localeCompare(b.name));
+
+  // pin stays top (only if included)
+  if (pinnedUrl){
+    const pinned = list.find(s=>s.url===pinnedUrl);
+    if (pinned){
+      list = [pinned, ...list.filter(s=>s.url!==pinnedUrl)];
+    }
+  }
+  return list;
 }
 
 /* ================= PAGING ================= */
@@ -326,39 +335,21 @@ function clampPage(i, list){
   return ((i % tp) + tp) % tp;
 }
 function updatePageInfo(list){
-  document.getElementById("pageInfo").textContent = `Page ${pageIndex+1}/${totalPages(list)}`;
+  document.getElementById("pageInfo").textContent = `Page ${pageIndex+1}/${totalPages(list)} • ${currentRegion}`;
 }
 
 /* ================= TILE PLAYER ================= */
 const grid = document.getElementById("grid");
-let currentTiles = [];
-
-function cleanupAllTiles(){
-  currentTiles.forEach(ref => {
-    try{
-      if (ref.statsTimer) clearInterval(ref.statsTimer);
-      if (ref.hls){ try{ref.hls.destroy();}catch(e){} ref.hls = null; }
-      if (ref.video){
-        try{ ref.video.pause(); }catch(e){}
-        ref.video.removeAttribute("src");
-        ref.video.load();
-      }
-    }catch(e){}
-  });
-  currentTiles = [];
-}
-
-function makePlayableUrl(camUrl){
-  if (isATCS(camUrl)) return PROXY + encodeURIComponent(camUrl);
-  return camUrl;
-}
+let currentTiles = []; // active tiles (for reload broken)
 
 function renderPage(){
   const list = orderedStreams();
   pageIndex = clampPage(pageIndex, list);
   updatePageInfo(list);
 
-  cleanupAllTiles();
+  // cleanup old tiles
+  currentTiles.forEach(t => t.destroy && t.destroy());
+  currentTiles = [];
   grid.innerHTML = "";
 
   const start = pageIndex * PER_PAGE;
@@ -382,28 +373,24 @@ function renderPage(){
     pin.className = "pinMark";
     if (cam.url === pinnedUrl) pin.textContent = "📌";
 
-    const srcTag = document.createElement("div");
-    srcTag.className = "sourceTag";
-    srcTag.textContent = sourceLabel(cam.url);
-
-    const reloadBtn = document.createElement("div");
-    reloadBtn.className = "tileReload";
-    reloadBtn.title = "Reload this tile";
-    reloadBtn.textContent = "↻";
-
     const nameTag = document.createElement("div");
     nameTag.className = "nameTag";
-    nameTag.textContent = cam.name;
+    nameTag.textContent = `${cam.region} • ${cam.name}`;
 
     const stats = document.createElement("div");
     stats.className = "stats";
     stats.textContent = "0fps 0.0s";
 
-    tile.append(v, badge, pin, srcTag, reloadBtn, nameTag, stats);
+    const tileReload = document.createElement("div");
+    tileReload.className = "tileReload";
+    tileReload.textContent = "↻";
+    tileReload.title = "Reload this tile";
+
+    tile.append(v, badge, pin, nameTag, stats, tileReload);
     grid.appendChild(tile);
 
-    const baseSrc = makePlayableUrl(cam.url);
-
+    // --- player state
+    const srcBase = buildSrc(cam.url);
     let hls = null;
     let lastUpdate = Date.now();
     let frames = 0;
@@ -423,12 +410,13 @@ function renderPage(){
       restarting = true;
       setBadge("restart");
 
+      // stop old
       if (hls){ try{ hls.destroy(); }catch(e){} hls=null; }
       try{ v.pause(); }catch(e){}
       v.removeAttribute("src");
       v.load();
 
-      const urlWithTs = baseSrc + (baseSrc.includes("?") ? "&" : "?") + "t=" + Date.now();
+      const urlWithTs = srcBase + (srcBase.includes("?") ? "&" : "?") + "t=" + Date.now();
 
       if (v.canPlayType("application/vnd.apple.mpegurl")){
         v.src = urlWithTs;
@@ -464,7 +452,6 @@ function renderPage(){
     const statsTimer = setInterval(() => {
       const fps = Math.round(frames / (STATS_EVERY_MS / 1000));
       frames = 0;
-
       const lag = (Date.now() - lastUpdate) / 1000;
       stats.textContent = `${fps}fps ${lag.toFixed(1)}s`;
 
@@ -474,29 +461,33 @@ function renderPage(){
       }
     }, STATS_EVERY_MS);
 
-    // Per-tile reload button (do not toggle fullscreen)
-    reloadBtn.addEventListener("click", (e) => {
+    // tap tile -> fullscreen
+    tile.addEventListener("click", (e) => {
+      // if clicking reload button, don't toggle fullscreen
+      if (e.target === tileReload) return;
+      tile.classList.toggle("fs");
+    });
+
+    // per-tile reload button
+    tileReload.addEventListener("click", (e) => {
       e.stopPropagation();
       startPlayback();
     });
 
-    // tap: fullscreen toggle
-    tile.addEventListener("click", () => {
-      tile.classList.toggle("fs");
-    });
-
-    // long-press: PIN / UNPIN toggle
+    // long-press pin / unpin
     let pressTimer = null;
     const pressStart = () => {
       pressTimer = setTimeout(() => {
         if (pinnedUrl === cam.url){
           // unpin
-          setPinned("");
+          localStorage.removeItem("pin_url");
+          pinnedUrl = "";
         } else {
           // pin
-          setPinned(cam.url);
+          localStorage.setItem("pin_url", cam.url);
+          pinnedUrl = cam.url;
+          pageIndex = 0;
         }
-        pageIndex = 0;
         renderPage();
       }, 650);
     };
@@ -504,7 +495,6 @@ function renderPage(){
       if (pressTimer) clearTimeout(pressTimer);
       pressTimer = null;
     };
-
     tile.addEventListener("touchstart", pressStart, {passive:true});
     tile.addEventListener("touchend", pressEnd);
     tile.addEventListener("touchcancel", pressEnd);
@@ -512,15 +502,15 @@ function renderPage(){
     // start now
     startPlayback();
 
-    currentTiles.push({
-      tile,
-      video: v,
-      statsTimer,
-      get hls(){ return hls; },
-      set hls(val){ hls = val; },
+    const ref = {
       restartFn: startPlayback,
-      isBadFn: () => badge.classList.contains("bad") || badge.textContent === "STALLED"
-    });
+      isBadFn: () => badge.classList.contains("bad") || badge.textContent === "STALLED",
+      destroy: () => {
+        clearInterval(statsTimer);
+        if (hls){ try{hls.destroy()}catch(e){} }
+      }
+    };
+    currentTiles.push(ref);
   });
 }
 
@@ -532,6 +522,13 @@ document.getElementById("reloadBroken").onclick = () => {
   currentTiles.forEach(t => { if (t.isBadFn()) t.restartFn(); });
 };
 
+regionPick.addEventListener("change", () => {
+  currentRegion = regionPick.value;
+  localStorage.setItem("region", currentRegion);
+  pageIndex = 0;
+  renderPage();
+});
+
 /* swipe paging */
 let x0 = null;
 document.addEventListener("touchstart", (e)=>{ x0 = e.touches[0].clientX; }, {passive:true});
@@ -541,7 +538,7 @@ document.addEventListener("touchend", (e)=>{
   const dx = x1 - x0;
   x0 = null;
   if (Math.abs(dx) > 70){
-    pageIndex += (dx < 0) ? 1 : -1;
+    pageIndex += (dx < 0) ? 1 : -1; // swipe left = next
     renderPage();
   }
 }, {passive:true});
