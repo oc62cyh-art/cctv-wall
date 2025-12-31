@@ -47,6 +47,7 @@ body{overflow:hidden}
   font-size:12px;
   line-height:1;
   white-space:nowrap;
+  appearance:none;
 }
 
 .btn:active{transform:scale(.98)}
@@ -72,6 +73,7 @@ body{overflow:hidden}
   border-radius:var(--radius);
   overflow:hidden;
   box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  touch-action: manipulation;
 }
 
 video{
@@ -88,6 +90,7 @@ video{
   padding:3px 8px;border-radius:999px;
   letter-spacing:.3px;
   user-select:none;
+  z-index:3;
 }
 .ok{background:#1faa59}
 .restart{background:#f5a623;color:#111}
@@ -101,6 +104,7 @@ video{
   user-select:none;
   background:rgba(255,255,255,.10);
   border:1px solid rgba(255,255,255,.12);
+  z-index:3;
 }
 
 .pinMark{
@@ -108,6 +112,7 @@ video{
   font-size:14px;
   text-shadow:0 2px 12px rgba(0,0,0,.6);
   user-select:none;
+  z-index:3;
 }
 
 .nameTag{
@@ -121,6 +126,7 @@ video{
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
+  z-index:3;
 }
 
 .stats{
@@ -132,7 +138,28 @@ video{
   border:1px solid rgba(255,255,255,.10);
   opacity:.9;
   font-variant-numeric: tabular-nums;
+  z-index:3;
 }
+
+/* Per-tile reload button */
+.tileReload{
+  position:absolute;
+  right:8px;
+  top:34px;
+  z-index:4;
+  width:30px;height:30px;
+  border-radius:999px;
+  border:1px solid rgba(255,255,255,.18);
+  background:rgba(0,0,0,.35);
+  color:#fff;
+  display:grid;
+  place-items:center;
+  font-size:14px;
+  line-height:1;
+  user-select:none;
+}
+.tileReload:active{transform:scale(.98)}
+.tileReload:hover{background:rgba(0,0,0,.5)}
 
 /* per-tile fullscreen */
 .tile.fs{
@@ -144,7 +171,8 @@ video{
 .tile.fs .stats,
 .tile.fs .pinMark,
 .tile.fs .sourceTag,
-.tile.fs .badge{transform: scale(1.05); transform-origin: bottom right;}
+.tile.fs .badge,
+.tile.fs .tileReload{transform: scale(1.05); transform-origin: bottom right;}
 </style>
 </head>
 
@@ -217,7 +245,6 @@ const STREAMS = [
   { name: "A005 BATANTA PTZ", url: "https://atcs.denpasarkota.go.id/stream/A005BATANTAPTZ/stream.m3u8" },
   { name: "TEUKU UMAR PTZ1", url: "https://atcs.denpasarkota.go.id/stream/TEUKUUMARPTZ1/stream.m3u8" },
   { name: "A003 GUNUNG SALAK PTZ", url: "https://atcs.denpasarkota.go.id/stream/A003GUNUNGSALAKPTZ/stream.m3u8" },
-  { name: "A004 TEUKU UMAR PTZ (ALT)", url: "https://atcs.denpasarkota.go.id/stream/A004TEUKUUMARPTZ/stream.m3u8" },
 
   // --- BaliProv (direct HLS) ---
   { name: "BaliProv: perbatasan-klungkung-gianyar", url: "https://transcode.baliprov.go.id/cctv/perbatasan-klungkung-gianyar/video1_stream.m3u8" },
@@ -229,12 +256,13 @@ const STREAMS = [
   { name: "BaliProv: jalan-seminyak-bintanggg-keraton", url: "https://transcode.baliprov.go.id/cctv/jalan-seminyak-depan-swalayan-bintanggg-keraton/video1_stream.m3u8" },
   { name: "BaliProv: jl-arjuna-doublesix", url: "https://transcode.baliprov.go.id/cctv/jl-arjuna-parkiran-pantai-doublesix/video1_stream.m3u8" },
   { name: "BaliProv: depan-pura-goa-lawah", url: "https://transcode.baliprov.go.id/cctv/depan-pura-goa-lawah/video1_stream.m3u8" },
-
-  /* NEW (added by you) */
   { name: "BaliProv: pertigaan-sman-satu-semarapura", url: "https://transcode.baliprov.go.id/cctv/pertigaan-sman-satu-semarapura/video1_stream.m3u8" },
   { name: "BaliProv: simpang-lima", url: "https://transcode.baliprov.go.id/cctv/simpang-lima/video1_stream.m3u8" },
   { name: "BaliProv: pasar-senggol", url: "https://transcode.baliprov.go.id/cctv/pasar-senggol/video1_stream.m3u8" },
-  { name: "BaliProv: depan-popies-2--sky-garden", url: "https://transcode.baliprov.go.id/cctv/depan-popies-2--sky-garden/video1_stream.m3u8" }
+  { name: "BaliProv: depan-popies-2--sky-garden", url: "https://transcode.baliprov.go.id/cctv/depan-popies-2--sky-garden/video1_stream.m3u8" },
+  { name: "BaliProv: simpang-bali-beach", url: "https://transcode.baliprov.go.id/cctv/simpang-bali-beach/video1_stream.m3u8" },
+  { name: "BaliProv: simpang-padang-galak", url: "https://transcode.baliprov.go.id/cctv/simpang-padang-galak/video1_stream.m3u8" },
+
 ];
 
 /* ================= HELPERS ================= */
@@ -255,8 +283,17 @@ STREAMS.sort((a,b)=>{
   return a.name.localeCompare(b.name);
 });
 
-/* ================= PIN LOGIC ================= */
+/* ================= PIN LOGIC (toggle) ================= */
 let pinnedUrl = localStorage.getItem("pin_url") || "";
+function setPinned(url){
+  if (!url){
+    localStorage.removeItem("pin_url");
+    pinnedUrl = "";
+  } else {
+    localStorage.setItem("pin_url", url);
+    pinnedUrl = url;
+  }
+}
 function orderedStreams(){
   if (!pinnedUrl) return STREAMS.slice();
   const pinned = STREAMS.find(s=>s.url===pinnedUrl);
@@ -297,7 +334,6 @@ function cleanupAllTiles(){
 }
 
 function makePlayableUrl(camUrl){
-  // ATCS via proxy, BaliProv direct
   if (isATCS(camUrl)) return PROXY + encodeURIComponent(camUrl);
   return camUrl;
 }
@@ -335,6 +371,11 @@ function renderPage(){
     srcTag.className = "sourceTag";
     srcTag.textContent = sourceLabel(cam.url);
 
+    const reloadBtn = document.createElement("div");
+    reloadBtn.className = "tileReload";
+    reloadBtn.title = "Reload this tile";
+    reloadBtn.textContent = "↻";
+
     const nameTag = document.createElement("div");
     nameTag.className = "nameTag";
     nameTag.textContent = cam.name;
@@ -343,7 +384,7 @@ function renderPage(){
     stats.className = "stats";
     stats.textContent = "0fps 0.0s";
 
-    tile.append(v, badge, pin, srcTag, nameTag, stats);
+    tile.append(v, badge, pin, srcTag, reloadBtn, nameTag, stats);
     grid.appendChild(tile);
 
     const baseSrc = makePlayableUrl(cam.url);
@@ -418,15 +459,28 @@ function renderPage(){
       }
     }, STATS_EVERY_MS);
 
+    // Per-tile reload button (do not toggle fullscreen)
+    reloadBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      startPlayback();
+    });
+
+    // tap: fullscreen toggle
     tile.addEventListener("click", () => {
       tile.classList.toggle("fs");
     });
 
+    // long-press: PIN / UNPIN toggle
     let pressTimer = null;
     const pressStart = () => {
       pressTimer = setTimeout(() => {
-        localStorage.setItem("pin_url", cam.url);
-        pinnedUrl = cam.url;
+        if (pinnedUrl === cam.url){
+          // unpin
+          setPinned("");
+        } else {
+          // pin
+          setPinned(cam.url);
+        }
         pageIndex = 0;
         renderPage();
       }, 650);
@@ -440,6 +494,7 @@ function renderPage(){
     tile.addEventListener("touchend", pressEnd);
     tile.addEventListener("touchcancel", pressEnd);
 
+    // start now
     startPlayback();
 
     currentTiles.push({
@@ -455,19 +510,11 @@ function renderPage(){
 }
 
 /* ================= CONTROLS ================= */
-document.getElementById("prevBtn").onclick = () => {
-  pageIndex--;
-  renderPage();
-};
-document.getElementById("nextBtn").onclick = () => {
-  pageIndex++;
-  renderPage();
-};
+document.getElementById("prevBtn").onclick = () => { pageIndex--; renderPage(); };
+document.getElementById("nextBtn").onclick = () => { pageIndex++; renderPage(); };
 
 document.getElementById("reloadBroken").onclick = () => {
-  currentTiles.forEach(t => {
-    if (t.isBadFn()) t.restartFn();
-  });
+  currentTiles.forEach(t => { if (t.isBadFn()) t.restartFn(); });
 };
 
 /* swipe paging */
